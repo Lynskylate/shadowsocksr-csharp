@@ -372,6 +372,7 @@ namespace Shadowsocks.View
                     if (!urls[i].StartsWith("ssr"))
                         urls.RemoveAt(i);
                 }
+
                 if (urls.Count > 0)
                 {
                     bool keep_selected_server = false; // set 'false' if import all nodes
@@ -387,18 +388,23 @@ namespace Shadowsocks.View
                         if (!config.isDefaultConfig())
                             keep_selected_server = true;
                     }
-                    string lastGroup = null;
-                    string curGroup = null;
+                    string curGroup = "", lastGroup ="";
+                    Dictionary<string, List<Server>> groupServers = new Dictionary<string, List<Server>>();
                     foreach (string url in urls)
                     {
-                        try // try get group name
+                        try
                         {
                             Server server = new Server(url, null);
-                            if (!String.IsNullOrEmpty(server.group))
+                            if (String.IsNullOrEmpty(server.group))
                             {
-                                curGroup = server.group;
-                                break;
+                                server.group = updateSubscribeManager.URL;
                             }
+                            if (!groupServers.ContainsKey(server.group))
+                            {
+                                groupServers.Add(server.group, new List<Server>());
+                            }
+                            curGroup = server.group;  // compact origin logic
+                            groupServers[server.group].Add(server);
                         }
                         catch
                         { }
@@ -459,13 +465,13 @@ namespace Shadowsocks.View
                                 }
                             }
                         }
-                        foreach (string url in urls)
+                        foreach(KeyValuePair<string, List<Server>> groupServer in groupServers)
                         {
-                            try
+                            string groupNmae = groupServer.Key;
+                            foreach(Server server in groupServer.Value)
                             {
-                                Server server = new Server(url, curGroup);
                                 bool match = false;
-                                foreach (KeyValuePair<string, Server> pair in old_servers)
+                                foreach(KeyValuePair<string, Server> pair in old_servers)
                                 {
                                     if (server.isMatchServer(pair.Value))
                                     {
@@ -482,9 +488,8 @@ namespace Shadowsocks.View
                                     ++count;
                                 }
                             }
-                            catch
-                            { }
                         }
+
                         foreach (KeyValuePair<string, Server> pair in old_servers)
                         {
                             for (int i = config.configs.Count - 1; i >= 0; --i)
